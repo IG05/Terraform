@@ -4,32 +4,16 @@ provider "google" {
   zone    = var.zone
 }
 
-# Reserve a global static IP for load balancer and .nip.io domain
+# Reserve static IP
 resource "google_compute_global_address" "lb_ip" {
   name = "static-ip-lb"
 }
 
-# Firewall rule to allow HTTP traffic to the VM (NGINX)
-resource "google_compute_firewall" "allow-http" {
-  name    = "allow-http"
-  network = "default"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["80"]
-  }
-
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["http-server"]
-}
-
-# Compute instance (NGINX VM)
+# NGINX VM
 resource "google_compute_instance" "nginx" {
   name         = "nginx-vm"
   machine_type = "e2-micro"
   zone         = var.zone
-
-  tags = ["http-server"]
 
   boot_disk {
     initialize_params {
@@ -45,27 +29,37 @@ resource "google_compute_instance" "nginx" {
   }
 
   metadata_startup_script = <<-EOT
-    #!/bin/bash
-    apt-get update
-    apt-get install -y nginx
-
-    # Configure NGINX to proxy pass to Cloud Run
-    cat > /etc/nginx/sites-available/default << EOF
+    sudo apt update
+    sudo apt install -y nginx
+    cat <<EOF > /etc/nginx/sites-available/default
     server {
-      listen 80;
-      location / {
-        proxy_pass https://${google_cloud_run_service.app.status[0].url};
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-      }
+        listen 80;
+        location / {
+            proxy_pass https://${google_cloud_run_service.app.status[0].url};
+            proxy_set_header Host \$host;
+            proxy_set_header X-Real-IP \$remote_addr;
+        }
     }
     EOF
-
     systemctl restart nginx
   EOT
 }
 
-# Cloud Run service running demo app (hello world)
+# Firewall for HTTP
+resource "google_compute_firewall" "allow-http" {
+  name    = "allow-http"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["http-server"]
+}
+
+# Cloud Run app
 resource "google_cloud_run_service" "app" {
   name     = "demo-app"
   location = var.region
@@ -86,10 +80,9 @@ resource "google_cloud_run_service" "app" {
   autogenerate_revision_name = true
 }
 
-# Allow public (allUsers) to invoke Cloud Run service
 resource "google_cloud_run_service_iam_member" "public" {
-  location = var.region
-  service  = google_cloud_run_service.app.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  location        = var.region
+  service         = google_cloud_run_service.app.name
+  role            = "roles/run.invoker"
+  member          = "allUsers"
 }
