@@ -1,9 +1,3 @@
-provider "google" {
-  project = var.project_id
-  region  = var.region
-  zone    = var.zone
-}
-
 resource "google_compute_address" "nginx_ip" {
   name   = "${var.vm_name}-ip"
   region = var.region
