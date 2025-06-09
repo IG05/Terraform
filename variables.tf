@@ -1,31 +1,16 @@
-variable "project_id" {
-  description = "GCP project ID"
-  type        = string
-}
-
+variable "project_id" {}
 variable "region" {
-  description = "GCP region"
-  type        = string
-  default     = "us-central1"
+  default = "us-central1"
 }
-
 variable "zone" {
-  description = "GCP zone"
-  type        = string
-  default     = "us-central1-a"
+  default = "us-central1-a"
 }
-
-variable "cloud_run_image" {
-  description = "Cloud Run Docker image URI"
-  type        = string
+variable "vm_name" {
+  default = "nginx-vm"
 }
-
-variable "domain_name" {
-  description = "Domain for Cloud DNS"
-  type        = string
+variable "run_service_name" {
+  default = "dummy-service"
 }
-
-variable "dns_zone_name" {
-  description = "Cloud DNS managed zone name"
-  type        = string
+variable "dummy_image" {
+  default = "gcr.io/cloudrun/hello"
 }

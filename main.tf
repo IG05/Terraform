@@ -4,70 +4,49 @@ provider "google" {
   zone    = var.zone
 }
 
-# Reserve static IP
-resource "google_compute_global_address" "lb_ip" {
-  name = "static-ip-lb"
-}
-
-# NGINX VM
-resource "google_compute_instance" "nginx" {
-  name         = "nginx-vm"
+resource "google_compute_instance" "nginx_vm" {
+  name         = var.vm_name
   machine_type = "e2-micro"
   zone         = var.zone
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-12"
+      image = "debian-cloud/debian-11"
     }
   }
 
   network_interface {
-    network = "default"
-    access_config {
-      nat_ip = google_compute_global_address.lb_ip.address
-    }
+    network       = "default"
+    access_config {}
   }
 
   metadata_startup_script = <<-EOT
-    sudo apt update
-    sudo apt install -y nginx
-    cat <<EOF > /etc/nginx/sites-available/default
-    server {
-        listen 80;
-        location / {
-            proxy_pass https://${google_cloud_run_service.app.status[0].url};
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-        }
+    #!/bin/bash
+    apt-get update
+    apt-get install -y nginx
+    cat > /etc/nginx/sites-available/default <<EOF
+server {
+    listen 80;
+    location / {
+        proxy_pass https://${google_cloud_run_service.app.status[0].url};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
-    EOF
+}
+EOF
     systemctl restart nginx
   EOT
 }
 
-# Firewall for HTTP
-resource "google_compute_firewall" "allow-http" {
-  name    = "allow-http"
-  network = "default"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["80"]
-  }
-
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["http-server"]
-}
-
-# Cloud Run app
 resource "google_cloud_run_service" "app" {
-  name     = "demo-app"
+  name     = var.run_service_name
   location = var.region
 
   template {
     spec {
       containers {
-        image = "gcr.io/cloudrun/hello"
+        image = var.dummy_image
       }
     }
   }
@@ -80,9 +59,46 @@ resource "google_cloud_run_service" "app" {
   autogenerate_revision_name = true
 }
 
-resource "google_cloud_run_service_iam_member" "public" {
-  location        = var.region
-  service         = google_cloud_run_service.app.name
-  role            = "roles/run.invoker"
-  member          = "allUsers"
+resource "google_compute_global_address" "external_ip" {
+  name = "external-ip"
+}
+
+resource "google_compute_instance_group" "nginx_group" {
+  name        = "nginx-group"
+  zone        = var.zone
+  instances   = [google_compute_instance.nginx_vm.self_link]
+  named_port {
+    name = "http"
+    port = 80
+  }
+}
+
+resource "google_compute_backend_service" "default" {
+  name                  = "cdn-backend"
+  protocol              = "HTTP"
+  load_balancing_scheme = "EXTERNAL"
+  backend {
+    group = google_compute_instance_group.nginx_group.self_link
+  }
+}
+
+resource "google_compute_url_map" "default" {
+  name            = "url-map"
+  default_service = google_compute_backend_service.default.self_link
+}
+
+resource "google_compute_target_http_proxy" "default" {
+  name    = "http-proxy"
+  url_map = google_compute_url_map.default.self_link
+}
+
+resource "google_compute_global_forwarding_rule" "default" {
+  name       = "http-rule"
+  ip_address = google_compute_global_address.external_ip.address
+  port_range = "80"
+  target     = google_compute_target_http_proxy.default.self_link
+}
+
+output "access_url" {
+  value = "http://${google_compute_global_address.external_ip.address}.nip.io"
 }
