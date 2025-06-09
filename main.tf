@@ -1,3 +1,11 @@
+terraform {
+  backend "gcs" {
+    bucket  = "autopipelinesetup"  # replace with your actual bucket name
+    prefix  = "terraform/state"       # folder path inside the bucket
+  }
+}
+
+
 resource "google_compute_address" "nginx_ip" {
   name   = "${var.vm_name}-ip"
   region = var.region
