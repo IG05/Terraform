@@ -1,16 +1,40 @@
-variable "project_id" {}
+variable "project_id" {
+  description = "GCP project ID"
+  type        = string
+}
+
 variable "region" {
-  default = "us-central1"
+  description = "GCP region"
+  type        = string
+  default     = "us-central1"
 }
+
 variable "zone" {
-  default = "us-central1-a"
+  description = "GCP zone"
+  type        = string
+  default     = "us-central1-a"
 }
+
 variable "vm_name" {
-  default = "nginx-vm"
+  description = "Name for the Compute Engine VM"
+  type        = string
+  default     = "nginx-vm"
 }
-variable "run_service_name" {
-  default = "dummy-service"
+
+variable "vm_machine_type" {
+  description = "Machine type for the VM"
+  type        = string
+  default     = "e2-micro"
 }
-variable "dummy_image" {
-  default = "gcr.io/cloudrun/hello"
+
+variable "cloud_run_service_name" {
+  description = "Cloud Run service name"
+  type        = string
+  default     = "demo-cloud-run"
+}
+
+variable "container_image" {
+  description = "Container image for Cloud Run"
+  type        = string
+  default     = "gcr.io/google-samples/hello-app:1.0"
 }
