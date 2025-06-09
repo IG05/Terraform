@@ -3,10 +3,25 @@ resource "google_compute_address" "nginx_ip" {
   region = var.region
 }
 
+resource "google_compute_firewall" "allow_http" {
+  name    = "allow-http"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["http-server"]
+}
+
 resource "google_compute_instance" "nginx_vm" {
   name         = var.vm_name
   machine_type = var.vm_machine_type
   zone         = var.zone
+
+  tags = ["http-server"]
 
   boot_disk {
     initialize_params {
