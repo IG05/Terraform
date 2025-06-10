@@ -1,28 +1,10 @@
 terraform {
   backend "gcs" {
-    bucket = "autopipelinesetup"
-    prefix = "terraform/state"
+    bucket  = "autopipelinesetup"  # replace with your actual bucket name
+    prefix  = "terraform/state"       # folder path inside the bucket
   }
 }
 
-variable "project_id" {}
-variable "region" {}
-variable "zone" {}
-variable "vm_name" {
-  default = "nginx-proxy"
-}
-variable "vm_machine_type" {
-  default = "e2-micro"
-}
-variable "cloud_run_service_name" {}
-variable "container_image" {}
-variable "path_prefix" {}
-
-provider "google" {
-  project = var.project_id
-  region  = var.region
-  zone    = var.zone
-}
 
 resource "google_compute_address" "nginx_ip" {
   name   = "${var.vm_name}-ip"
@@ -76,9 +58,6 @@ locals {
     apt-get update
     apt-get install -y nginx
 
-    CLOUD_RUN_URL="${local.cloud_run_url}"
-    CLOUD_RUN_HOST="${local.cloud_run_host}"
-
     cat > /etc/nginx/sites-available/default <<EOF
 server {
     listen 80 default_server;
@@ -131,8 +110,4 @@ resource "google_compute_instance" "nginx_vm" {
   }
 
   metadata_startup_script = local.nginx_startup_script
-}
-
-output "nginx_ip" {
-  value = google_compute_address.nginx_ip.address
 }
