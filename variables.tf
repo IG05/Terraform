@@ -38,3 +38,8 @@ variable "container_image" {
   type        = string
   default     = "gcr.io/google-samples/hello-app:1.0"
 }
+
+variable "path_prefix" {
+  description = "URL path prefix to route to this Cloud Run service"
+  type        = string
+}

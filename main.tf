@@ -86,7 +86,7 @@ server {
     listen [::]:80 default_server;
     server_name _;
 
-    location / {
+    location ${var.path_prefix}/ {
         proxy_pass $CLOUD_RUN_URL;
 
         proxy_ssl_server_name on;
@@ -98,6 +98,9 @@ server {
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+
+        rewrite ^${var.path_prefix}/(.*)$ /\$1 break;
+
     }
 }
 EOF
