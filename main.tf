@@ -86,7 +86,7 @@ server {
     listen [::]:80 default_server;
     server_name _;
 
-    location ${var.path_prefix}/ {
+    location ~ ^${var.path_prefix}(/.*)?$ {
         proxy_pass $CLOUD_RUN_URL;
 
         proxy_ssl_server_name on;
